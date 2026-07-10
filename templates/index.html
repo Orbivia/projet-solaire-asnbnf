@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CalcPvAutonome Mobile</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        .background-logo {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('/static/logo.png');
+            background-repeat: no-repeat; background-position: center; background-size: contain;
+            opacity: 0.08; z-index: -1; pointer-events: none;
+        }
+        body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; padding-bottom: 120px; background-color: #f4f7f6; color: #333;}
+        
+        /* STYLE EN BLOCS SOLIDAIRES */
+        h2 { 
+            font-size: 1.1rem; 
+            margin: 35px 0 0 0; 
+            background-color: #2c3e50; 
+            color: white; 
+            padding: 12px 15px; 
+            border-radius: 8px 8px 0 0; 
+        }
+        
+        .container { padding: 15px; }
+        
+        .card { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 0 0 8px 8px; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+            margin-bottom: 0px; 
+        }
+
+        input, select, button { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        label { font-size: 0.85rem; font-weight: bold; color: #555; display: block; margin-top: 10px; }
+        button.primary { background-color: #007bff; color: white; border: none; font-weight: bold; margin-top: 10px; padding: 15px;}
+        
+        #map { height: 200px; border-radius: 8px; margin-bottom: 10px; z-index: 1;}
+        .eq-card { background: #e9f5ff; padding: 10px; border-radius: 8px; margin-bottom: 5px; position: relative; border-left: 4px solid #007bff; }
+        .btn-delete { position: absolute; top: 10px; right: 10px; background: #ff4d4d; color: white; border: none; border-radius: 5px; padding: 5px 10px; width: auto; }
+
+        .sticky-footer { position: fixed; bottom: 0; left: 0; width: 100%; background: #222; color: white; padding: 10px 15px; box-sizing: border-box; display: flex; justify-content: space-between; flex-wrap: wrap; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 1000;}
+        .sticky-footer div { text-align: center; font-size: 0.8rem; width: 48%; margin-bottom: 5px;}
+        .sticky-footer strong { display: block; font-size: 1.1rem; color: #4CAF50; }
+        .highlight { color: #ffeb3b !important; }
+        .chart-container { position: relative; height: 200px; width: 100%; margin-top: 15px; display: none; }
+        
+        .msg-box { padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .msg-error { background-color: #fee; border-left: 4px solid #c00; color: #c00; }
+        .msg-info { background-color: #e9f5ff; color: #007bff; text-align: center;}
+
+        /* Grilles pour les paramètres techniques */
+        .grid-params { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px;}
+        .grid-params label { margin-top: 5px; font-size: 0.75rem;}
+        .grid-params input { padding: 8px; margin: 0; text-align: center;}
+        
+        details { background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px; }
+        summary { font-weight: bold; color: #2c3e50; cursor: pointer; padding: 5px 0; outline: none; }
+
+        /* Styles du schéma de câblage RESPONSIVE (Sans Slider) */
+        .schema-wrapper { width: 100%; padding: 10px 0; background: #fff; border-radius: 8px; border: 1px solid #a3e4d7; margin-top: 15px; box-sizing: border-box; overflow: hidden; }
+        .wiring-diagram { display: flex; flex-direction: column; align-items: center; width: 100%; font-family: -apple-system, sans-serif; }
+        .bus-container { position: relative; width: 95%; border-left: 3px solid #e74c3c; border-right: 3px solid #2c3e50; padding: 10px 0; margin: 5px 0; background: #fdfdfd; border-radius: 4px; box-sizing: border-box;}
+        .flex-row-center { display: flex; align-items: center; justify-content: space-between; width: 100%; margin: 8px 0; }
+        .wire-flex-red { flex-grow: 1; height: 3px; background: #e74c3c; }
+        .wire-flex-black { flex-grow: 1; height: 3px; background: #2c3e50; }
+        .wire-fixed-series { width: 10px; height: 3px; background: #7f8c8d; }
+        .node-box { background: white; border: 2px solid #bdc3c7; border-radius: 6px; padding: 6px 2px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; width: 45%; max-width: 90px; flex-shrink: 1;}
+        .node-panel { border-color: #3498db; background: #ebf5fb; }
+        .node-battery { border-color: #2ecc71; background: #eaeded; }
+        .node-controller { border-color: #f1c40f; background: #fffdf5; width: 80%; max-width: 180px; margin: 5px auto; z-index: 2; padding: 8px;}
+        .node-icon { width: 28px; height: 28px; margin: 0 auto 3px auto; }
+        .node-details { font-size: 0.6rem; color: #555; line-height: 1.2;}
+        .node-details strong { color: #222; font-size: 0.7rem;}
+        .node-poles { display: flex; justify-content: space-between; position: absolute; width: 100%; top: 50%; left: 0; transform: translateY(-50%); pointer-events: none;}
+        .pole-plus, .pole-minus { width: 6px; height: 6px; background: white; border: 2px solid; border-radius: 50%; }
+        .pole-plus { border-color: #e74c3c; transform: translateX(-3px); }
+        .pole-minus { border-color: #2c3e50; transform: translateX(3px); }
+        
+        .synthesis-title { background-color: #27ae60 !important; border-bottom: 4px solid #1e8449 !important; }
+        .synthesis-card { background-color: #e8f8f5; border: 2px solid #27ae60; border-top: none; }
+        .synthesis-card h3 { color: #1e8449; margin-bottom: 5px;}
+        .result-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 5px 0; font-size: 0.9rem;}
+        .result-row strong { color: #2c3e50; }
+        
+        .bg-resultat { background-color: #4caf50; color: white;}
+    </style>
+</head>
+<body>
+<header style="background: linear-gradient(135deg, #2c3e50, #1a252f); color: white; padding: 20px 15px; text-align: center; border-bottom: 4px solid #27ae60; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+    <h1 style="margin: 0; font-size: 1.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Calculateur Solaire</h1>
+    <div style="margin-top: 10px; font-size: 0.7rem; color: #bdc3c7; border-top: 1px solid #3e5871; padding-top: 5px;">
+        Propulsé par <strong>Orbivia</strong> pour l'association <strong>ASNBNF</strong>
+    </div>
+</header>
+    <div class="container">
+        <h2> 1. Localisation & Ensoleillement</h2>
+        <div class="card">
+            <p style="font-size: 0.8rem; color: #666; margin-top: 0;">Touchez la carte pour récupérer l'ensoleillement local.</p>
+            <div id="map"></div>
+            
+            <div id="apiErrorMsg" class="msg-box msg-error"></div>
+            
+            <label>Stratégie de dimensionnement</label>
+            <select id="strategie" onchange="changerStrategie()">
+                <option value="defavorable">Mois le plus défavorable</option>
+                <option value="moyenne">Moyenne annuelle</option>
+            </select>
+
+            <label>Irradiation journalière de référence (Wh/m²)</label>
+            <input type="number" id="irradiation" value="4597" onchange="calculerTotal()">
+            
+            <div class="chart-container" id="chartContainer">
+                <canvas id="solarChart"></canvas>
+            </div>
+            <p id="loadingMsg" class="msg-box msg-info">Récupération des données solaires...</p>
+        </div>
+
+        <h2> 2. Bilan de consommation</h2>
+        <div class="card">
+            <label>Choisir un équipement type</label>
+            <select id="typeEq" onchange="majChampsEquipement()">
+                <option value="Ampoule Led|10">💡 Ampoule Led (10W)</option>
+                <option value="Néon 120 cm|18">💡 Néon 120 cm (18W)</option>
+                <option value="Chargeur Téléphone|5">📱 Chargeur Téléphone (5W)</option>
+                <option value="Frigo top|80">❄️ Frigo top (80W)</option>
+                <option value="Congélateur|150">🧊 Congélateur (150W)</option>
+                <option value="Ordinateur|65">💻 Ordinateur (65W)</option>
+                <option value="Téléviseur|60">📺 Téléviseur (60W)</option>
+                <option value="Prises diverses|50">🔌 Prises diverses (50W)</option>
+                <option value="Ventilateur de plafond|60">🌀 Ventilateur de plafond (60W)</option>
+                <option value="Ventilateur sur pied|45">🌀 Ventilateur sur pied (45W)</option>
+                <option value="Autre|0">✏️ Autre équipement (manuel)</option>
+            </select>
+
+            <input type="text" id="nomCustomEq" placeholder="Nom de l'équipement" style="display:none;">
+
+            <div style="display: flex; gap: 10px;">
+                <div style="width: 100%;">
+                    <label>Puissance unitaire (W)</label>
+                    <input type="number" id="puissanceEq" value="10" min="0">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div style="width: 100%;">
+                    <label>Quantité</label>
+                    <input type="number" id="qtEq" value="1" min="1">
+                </div>
+                <div style="width: 100%;">
+                    <label>Heures total/j</label>
+                    <input type="number" id="hEq" value="6" min="1" max="24">
+                </div>
+                <div style="width: 100%;">
+                    <label>Dont nuit (h)</label>
+                    <input type="number" id="hNuitEq" value="0" min="0" max="24">
+                </div>
+            </div>
+            
+            <button class="primary" onclick="ajouterEquipement()"> Ajouter l'équipement</button>
+            <div id="listeEquipements" style="margin-top: 15px;"></div>
+            
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
+                <label>Consommation Nuit totale (calculée auto.)</label>
+                <input type="number" id="conso_nuit" value="0" readonly style="background-color: #fff9c4; font-weight: bold; cursor: not-allowed;">
+            </div>
+        </div>
+
+        <h2> 3. Paramètres Techniques</h2>
+        <div class="card">
+            
+            <details open>
+                <summary>Rendements du système</summary>
+                <div class="grid-params">
+                    <div><label>Onduleur</label><input type="number" id="r_onduleur" value="0.98" step="0.01" onchange="calculerTotal()"></div>
+                    <div><label>Régulateur</label><input type="number" id="r_regulateur" value="0.98" step="0.01" onchange="calculerTotal()"></div>
+                    <div><label>Batteries</label><input type="number" id="r_batteries" value="0.80" step="0.01" onchange="calculerTotal()"></div>
+                    <div><label>Pertes Chaleur</label><input type="number" id="r_chaleur" value="0.9475" step="0.01" onchange="calculerTotal()"></div>
+                    <div><label>Câbles</label><input type="number" id="r_cables" value="0.99" step="0.01" onchange="calculerTotal()"></div>
+                    <div><label>Inclinaison/Orient.</label><input type="number" id="r_inclinaison" value="1.00" step="0.01" onchange="calculerTotal()"></div>
+                </div>
+                <div style="text-align: center; margin-top: 10px; font-size: 0.9rem;">
+                    Rendement global : <strong id="rendement_global_affichage" style="color: #d9534f; font-size: 1.1rem;">0.72</strong>
+                </div>
+            </details>
+
+            <details>
+                <summary>Spécifications du Panneau Solaire</summary>
+                <div class="grid-params">
+                    <div style="grid-column: span 2;"><label style="color:#007bff;">Puissance nominale (Wc)</label><input type="number" id="p_panneau" value="435" onchange="calculerTotal()"></div>
+                    <div><label>Isc (A)</label><input type="number" id="p_isc" value="6.43" step="0.01"></div>
+                    <div><label>Voc (V)</label><input type="number" id="p_voc" value="85.6" step="0.1"></div>
+                    <div><label>Vmpp (V)</label><input type="number" id="p_vmpp" value="72.9" step="0.1"></div>
+                    <div><label>Impp (A)</label><input type="number" id="p_impp" value="5.97" step="0.01"></div>
+                    <div style="grid-column: span 2;"><label>Rendement module (%)</label><input type="number" id="p_rendement_mod" value="20.1" step="0.1"></div>
+                </div>
+            </details>
+
+            <details>
+                <summary>Stockage & Batteries</summary>
+                <div class="grid-params">
+                    <div><label>Jours d'autonomie</label><input type="number" id="b_jours" value="0.5" step="0.1" onchange="calculerTotal()"></div>
+                    <div><label>Prof. décharge (D)</label><input type="number" id="b_decharge" value="0.9" step="0.05" onchange="calculerTotal()"></div>
+                    <div style="grid-column: span 2;"><label>Tension système choisie (V)</label>
+                        <select id="b_tension_sys" onchange="calculerTotal()" style="background-color: #e0f7fa;">
+                            <option value="12">12 V</option>
+                            <option value="24">24 V</option>
+                            <option value="48" selected>48 V</option>
+                        </select>
+                    </div>
+                    <div><label>Tension d'UNE batterie (V)</label>
+                        <select id="b_tension_unitaire" onchange="calculerTotal()" style="background-color: #e0f7fa;">
+                            <option value="2">2 V</option>
+                            <option value="12" selected>12 V</option>
+                        </select>
+                    </div>
+                    <div><label>Capacité d'UNE batterie (Ah)</label><input type="number" id="b_capa_unitaire" value="100" onchange="calculerTotal()" style="background-color: #e0f7fa;"></div>
+                </div>
+            </details>
+            
+            <details>
+                <summary>Câblage (Longueurs)</summary>
+                <div class="grid-params">
+                    <div style="grid-column: span 2;"><label>Distance Panneaux ➔ Onduleur (m)</label><input type="number" id="c_dist_po" value="8" onchange="calculerTotal()"></div>
+                    <div style="grid-column: span 2;"><label>Distance Onduleur ➔ Batterie (m)</label><input type="number" id="c_dist_ob" value="1" onchange="calculerTotal()"></div>
+                </div>
+            </details>
+
+        </div>
+
+        <h2 class="synthesis-title"> 4. Synthèse et Dimensionnement</h2>
+        <div class="card synthesis-card">
+            
+            <h3>Production requise</h3>
+            <div class="result-row"><span>Puissance max simultanée (Onduleur)</span><strong id="cr-pmax" class="highlight" style="color: #d35400 !important;">0 W</strong></div>
+            <div class="result-row"><span>Consommation journalière</span><strong id="cr-conso">0 Wh/j</strong></div>
+            <div class="result-row"><span>Énergie à produire (avec pertes)</span><strong id="cr-prod">0 Wh/j</strong></div>
+            <div class="result-row"><span>Irradiation de référence</span><strong id="cr-irrad">0 Wh/m²/j</strong></div>
+            
+            <h3 style="margin-top: 15px;">Parc Panneaux</h3>
+            <div class="result-row"><span>Puissance Crête Totale</span><strong id="cr-crete">0 Wc</strong></div>
+            <div class="result-row bg-resultat" style="padding: 10px; border-radius: 5px;">
+                <span>Nombre total de panneaux</span>
+                <strong id="cr-nb-panneaux" style="font-size: 1.2rem; color: white;">0</strong>
+            </div>
+
+            <h3 style="margin-top: 15px;">Parc Batteries</h3>
+            <div class="result-row"><span>Capacité nécessaire (théorique)</span><strong id="cr-capa-theo">0 Ah</strong></div>
+            <div class="result-row"><span>Capacité avec facteur dommage (0.8)</span><strong id="cr-capa-reelle">0 Ah</strong></div>
+            <div class="result-row bg-resultat" style="padding: 10px; border-radius: 5px;">
+                <span>Batteries en parallèle x série</span>
+                <strong style="color:white;"><span id="cr-bat-para">0</span> P x <span id="cr-bat-serie">0</span> S = <span id="cr-bat-total">0</span> Total</strong>
+            </div>
+
+            <h3 style="margin-top: 15px;">Sections de câble (Indicatif)</h3>
+            <div class="result-row"><span>Panneaux ➔ Onduleur</span><strong id="cr-sec-po">0 mm²</strong></div>
+            <div class="result-row"><span>Onduleur ➔ Batterie</span><strong id="cr-sec-ob">0 mm²</strong></div>
+
+            <h3 style="margin-top: 25px; border-top: 2px dashed #a3e4d7; padding-top: 15px;">🔌 Schéma de principe unifilaire</h3>
+            <div class="schema-container" id="schema-box" style="border: 1px solid #a3e4d7; padding:10px; background:white; border-radius:8px;">
+                <!-- Généré dynamiquement en JS -->
+            </div>
+        </div>
+
+        <div style="text-align: center; font-size: 0.75rem; color: #7f8c8d; margin-top: 30px; margin-bottom: 20px; padding: 10px;">
+            &copy; 2026 Application réalisée par <strong>Orbivia</strong> pour l'association Artisanat Solidaire Nord Bénin - Nord de France (ASNBNF).
+        </div>
+
+    </div>
+
+    <div class="sticky-footer" id="footer-stats">
+        <div>Conso. Totale<strong id="res-conso">0 Wh/j</strong></div>
+        <div>Stockage nécessaire<strong id="res-stockage" style="color:#00bcd4;">0 Ah</strong></div>
+        <div style="width: 100%; border-top: 1px solid #555; padding-top: 5px;">
+            Puissance Solaire <strong id="res-crete" class="highlight">0 Wc</strong>
+        </div>
+    </div>
+
+    <script>
+        const map = L.map('map').setView([10.526, 1.120], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let marker;
+        let solarChartInstance = null;
+        let pvgisValues = [];
+
+        map.on('click', async function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            
+            if(marker) map.removeLayer(marker);
+            marker = L.marker([lat, lng]).addTo(map);
+            
+            const loadingMsg = document.getElementById('loadingMsg');
+            const errorMsg = document.getElementById('apiErrorMsg');
+            
+            loadingMsg.style.display = 'block';
+            errorMsg.style.display = 'none';
+            
+            try {
+                const response = await fetch(`/get_solar_data?lat=${lat}&lon=${lng}`);
+                
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || "Erreur serveur HTTP");
+                }
+                
+                const data = await response.json();
+                const labels = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+                
+                pvgisValues = data.monthly.map((val, index) => {
+                    const daysInMonth = new Date(2024, index + 1, 0).getDate();
+                    return (val * 1000) / daysInMonth; 
+                });
+                
+                afficherGraphique(labels, pvgisValues);
+                changerStrategie(); 
+                
+            } catch (error) {
+                console.error('Erreur :', error);
+                errorMsg.innerHTML = "<strong>Erreur API :</strong> " + error.message + "<br><small>Astuce : Cliquez sur un pays ou vérifiez que Flask tourne.</small>";
+                errorMsg.style.display = 'block';
+                document.getElementById('chartContainer').style.display = 'none';
+            } finally {
+                loadingMsg.style.display = 'none';
+            }
+        });
+
+        function changerStrategie() {
+            if(pvgisValues.length === 0) return;
+            const strat = document.getElementById('strategie').value;
+            let valReference = 0;
+            
+            if(strat === 'defavorable') {
+                valReference = Math.min(...pvgisValues);
+            } else {
+                valReference = pvgisValues.reduce((a, b) => a + b, 0) / pvgisValues.length;
+            }
+            
+            document.getElementById('irradiation').value = Math.round(valReference);
+            calculerTotal();
+        }
+
+        function afficherGraphique(labels, data) {
+            document.getElementById('chartContainer').style.display = 'block';
+            const ctx = document.getElementById('solarChart').getContext('2d');
+            
+            if (solarChartInstance) { solarChartInstance.destroy(); }
+            
+            solarChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Irradiation (Wh/m²/j)',
+                        data: data,
+                        backgroundColor: '#ffc107',
+                        borderColor: '#ff9800',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        let equipements = [];
+
+        function majChampsEquipement() {
+            const selectVal = document.getElementById('typeEq').value;
+            const data = selectVal.split('|');
+            const nom = data[0];
+            const puissance = data[1];
+
+            document.getElementById('puissanceEq').value = puissance;
+            document.getElementById('nomCustomEq').style.display = (nom === "Autre") ? 'block' : 'none';
+        }
+
+        function ajouterEquipement() {
+            const selectData = document.getElementById('typeEq').value.split('|');
+            let nom = selectData[0];
+            if(nom === "Autre") nom = document.getElementById('nomCustomEq').value || "Équipement personnalisé";
+
+            const puissance = parseFloat(document.getElementById('puissanceEq').value) || 0;
+            const qt = parseFloat(document.getElementById('qtEq').value) || 1;
+            const h = parseFloat(document.getElementById('hEq').value) || 0;
+            let hNuit = parseFloat(document.getElementById('hNuitEq').value) || 0;
+
+            if (hNuit > h) hNuit = h; // Sécurité : la nuit ne dépasse pas le total
+            document.getElementById('hNuitEq').value = hNuit;
+
+            equipements.push({ 
+                nom, 
+                puissance, 
+                qt, 
+                h, 
+                hNuit,
+                total: puissance * qt * h,
+                totalNuit: puissance * qt * hNuit
+            });
+            afficherEquipements();
+            calculerTotal();
+        }
+
+        function afficherEquipements() {
+            const liste = document.getElementById('listeEquipements');
+            liste.innerHTML = ''; 
+            equipements.forEach((eq, index) => {
+                liste.innerHTML += `
+                    <div class="eq-card">
+                        <strong>${eq.nom}</strong><br>
+                        <span>${eq.qt} × ${eq.puissance}W allumé(s) ${eq.h}h/j ➔ <b>${eq.total} Wh/j</b></span><br>
+                        <span style="font-size: 0.8rem; color: #555;">🌙 Dont la nuit : ${eq.hNuit}h ➔ <b>${eq.totalNuit} Wh/j</b></span>
+                        <button class="btn-delete" onclick="supprimer(${index})">❌</button>
+                    </div>
+                `;
+            });
+        }
+
+        function supprimer(index) {
+            equipements.splice(index, 1);
+            afficherEquipements();
+            calculerTotal();
+        }
+
+        function calculerTotal() {
+            // 1. Calcul du besoin
+            let conso = 0;
+            let conso_nuit_calc = 0;
+            let puissance_max = 0;
+            equipements.forEach(eq => {
+                conso += eq.total;
+                conso_nuit_calc += eq.totalNuit;
+                puissance_max += (eq.puissance * eq.qt); 
+            });
+            
+            document.getElementById('conso_nuit').value = Math.round(conso_nuit_calc);
+            
+            // 2. Rendement global
+            const r_ond = parseFloat(document.getElementById('r_onduleur').value) || 1;
+            const r_reg = parseFloat(document.getElementById('r_regulateur').value) || 1;
+            const r_bat = parseFloat(document.getElementById('r_batteries').value) || 1;
+            const r_cab = parseFloat(document.getElementById('r_cables').value) || 1;
+            const r_chal = parseFloat(document.getElementById('r_chaleur').value) || 1;
+            const r_incl = parseFloat(document.getElementById('r_inclinaison').value) || 1;
+            
+            const rendement_global = r_ond * r_reg * r_bat * r_cab * r_chal * r_incl;
+            document.getElementById('rendement_global_affichage').innerText = rendement_global.toFixed(2);
+            
+            let e_produire = conso / rendement_global;
+
+            // 3. Dimensionnement Panneaux
+            const irradiation = parseFloat(document.getElementById('irradiation').value) || 1;
+            let p_crete = (e_produire / irradiation) * 1000;
+            const p_panneau = parseFloat(document.getElementById('p_panneau').value) || 1;
+            let nb_panneaux = Math.ceil(p_crete / p_panneau);
+
+            // 4. Dimensionnement Batteries
+            const conso_nuit = conso_nuit_calc; 
+            const jours_autonomie = parseFloat(document.getElementById('b_jours').value) || 0.5;
+            const profondeur_decharge = parseFloat(document.getElementById('b_decharge').value) || 0.9;
+            const tension_sys = parseFloat(document.getElementById('b_tension_sys').value) || 48;
+            const tension_bat_unitaire = parseFloat(document.getElementById('b_tension_unitaire').value) || 12;
+            
+            // L'énergie à stocker couvre le plus critique entre : passer la nuit OU survivre aux jours nuageux (autonomie totale)
+            let energie_stockage = Math.max(conso_nuit, conso * jours_autonomie);
+            
+            let capa_batterie = energie_stockage / (tension_sys * profondeur_decharge * r_bat);
+            let capa_batterie_endommagement = capa_batterie / 0.8; 
+            
+            const capa_unitaire = parseFloat(document.getElementById('b_capa_unitaire').value) || 100;
+            
+            let nb_bat_serie = Math.ceil(tension_sys / tension_bat_unitaire);
+            let nb_bat_para = Math.ceil(capa_batterie_endommagement / capa_unitaire);
+            
+            // 5. Câblage 
+            const rho = 0.017;
+            const dist_po = parseFloat(document.getElementById('c_dist_po').value) || 8;
+            const vmpp_panneau = parseFloat(document.getElementById('p_vmpp').value) || 72.9;
+            const impp_panneau = parseFloat(document.getElementById('p_impp').value) || 5.97;
+            
+            let i_panneaux = impp_panneau * nb_panneaux; 
+            let deltaV_po = vmpp_panneau * 0.03;
+            let sec_po = deltaV_po > 0 ? ((rho * 2 * dist_po * i_panneaux) / deltaV_po).toFixed(2) : 0;
+
+            const dist_ob = parseFloat(document.getElementById('c_dist_ob').value) || 1;
+            let i_batterie = puissance_max > 0 ? (puissance_max / tension_sys) : 0; 
+            let deltaV_ob = tension_sys * 0.03;
+            let sec_ob = deltaV_ob > 0 ? ((rho * 2 * dist_ob * i_batterie) / deltaV_ob).toFixed(2) : 0;
+
+            const sections_commerciales = [4, 6, 10, 16, 25, 35, 50, 70, 95, 120];
+            sec_po = sections_commerciales.find(s => s >= sec_po) || sec_po;
+            sec_ob = sections_commerciales.find(s => s >= sec_ob) || sec_ob;
+
+            // Mise à jour de l'affichage (Sticky Footer + Tableau)
+            document.getElementById('res-conso').innerText = Math.round(conso) + " Wh/j";
+            document.getElementById('res-stockage').innerText = Math.round(capa_batterie_endommagement) + " Ah";
+            document.getElementById('res-crete').innerText = Math.round(p_crete) + " Wc";
+            
+            document.getElementById('cr-conso').innerText = Math.round(conso) + " Wh/j";
+            document.getElementById('cr-prod').innerText = Math.round(e_produire) + " Wh/j";
+            document.getElementById('cr-irrad').innerText = Math.round(irradiation) + " Wh/m²/j";
+            document.getElementById('cr-crete').innerText = Math.round(p_crete) + " Wc";
+            document.getElementById('cr-nb-panneaux').innerText = conso > 0 ? nb_panneaux : 0;
+            
+            document.getElementById('cr-pmax').innerText = puissance_max + " W (Onduleur)";
+            document.getElementById('cr-capa-theo').innerText = capa_batterie.toFixed(2) + " Ah";
+            document.getElementById('cr-capa-reelle').innerText = capa_batterie_endommagement.toFixed(2) + " Ah";
+            document.getElementById('cr-bat-para').innerText = conso > 0 ? nb_bat_para : 0;
+            document.getElementById('cr-bat-serie').innerText = conso > 0 ? nb_bat_serie : 0;
+            document.getElementById('cr-bat-total').innerText = conso > 0 ? (nb_bat_para * nb_bat_serie) : 0;
+            
+            document.getElementById('cr-sec-po').innerText = sec_po + " mm²";
+            document.getElementById('cr-sec-ob').innerText = sec_ob + " mm²";
+
+            genererSchema(nb_panneaux, nb_bat_para, nb_bat_serie, sec_po, sec_ob);
+        }
+
+        function genererSchema(nb_p, nb_b_para, nb_b_serie, sec_po, sec_ob) {
+            const box = document.getElementById('schema-box');
+            box.innerHTML = ''; 
+            
+            if (nb_p <= 0) {
+                box.innerHTML = '<span style="color:#888; font-style:italic;">Le schéma sera généré dès que vous ajouterez des équipements.</span>';
+                return;
+            }
+
+            const p_panneau = document.getElementById('p_panneau').value;
+            const p_vmpp = document.getElementById('p_vmpp').value;
+            const p_impp = document.getElementById('p_impp').value;
+            const tension_sys = document.getElementById('b_tension_sys').value;
+            const b_capa = document.getElementById('b_capa_unitaire').value;
+            const b_tension = document.getElementById('b_tension_unitaire').value;
+
+            const svgPanel = `<svg viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>`;
+            const svgBattery = `<svg viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M7 6V4h3v2M14 6V4h3v2"/><path d="M9 13h6M12 10v6"/></svg>`;
+            const svgController = `<svg viewBox="0 0 24 24" fill="none" stroke="#f39c12" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h10M8 9h2v2H8zM14 9h2v2h-2z"/></svg>`;
+
+            let html = `<div class="schema-wrapper"><div class="wiring-diagram">`;
+
+            // --- SECTION PANNEAUX ---
+            html += `<div style="text-align:center; font-weight:bold; margin-bottom: 5px; color:#2c3e50;">Parc de Panneaux (${nb_p})</div>`;
+            html += `<div class="bus-container">`;
+            
+            let p_count = 0;
+            let max_p_drawn = 12; 
+            let p_to_draw = Math.min(nb_p, max_p_drawn);
+            
+            for(let r=0; r < Math.ceil(p_to_draw/2); r++) {
+                html += `<div class="flex-row-center"><div class="wire-flex-red"></div>`;
+                for(let c=0; c < 2; c++) {
+                    if(p_count >= p_to_draw) break;
+                    if(c > 0) html += `<div class="wire-fixed-series"></div>`;
+                    html += `
+                        <div class="node-box node-panel">
+                            <div class="node-icon">${svgPanel}</div>
+                            <div class="node-details"><strong>${p_panneau}Wc</strong><br>${p_vmpp}V | ${p_impp}A</div>
+                            <div class="node-poles"><div class="pole-plus"></div><div class="pole-minus"></div></div>
+                        </div>`;
+                    p_count++;
+                }
+                html += `<div class="wire-flex-black"></div></div>`;
+            }
+            if (nb_p > max_p_drawn) html += `<div style="text-align:center; font-size:0.8rem; color:#888;">+ ${nb_p - max_p_drawn} panneaux non dessinés</div>`;
+            html += `</div>`;
+
+            // --- SECTION REGULATEUR & CABLES ---
+            html += `<div style="display:flex; justify-content:center; width:100%; max-width:200px;">
+                        <div style="border-left:3px solid #e74c3c; height:25px; margin-right:30%;"></div>
+                        <div style="border-left:3px solid #2c3e50; height:25px;"></div>
+                     </div>`;
+            html += `<div style="font-size:0.7rem; background:#fff3cd; padding:2px 8px; border-radius:10px; border:1px solid #ffeeba;">Section Câble Solaire : <strong>${sec_po} mm²</strong></div>`;
+
+            html += `
+                <div class="node-box node-controller">
+                    <div class="node-icon">${svgController}</div>
+                    <div class="node-details"><strong>Régulateur de Charge MPPT</strong><br>Tension système : ${tension_sys}V</div>
+                </div>`;
+
+            html += `<div style="font-size:0.7rem; background:#fff3cd; padding:2px 8px; border-radius:10px; border:1px solid #ffeeba; margin-top:5px;">Section Câble Batterie : <strong>${sec_ob} mm²</strong></div>`;
+            html += `<div style="display:flex; justify-content:center; width:100%; max-width:200px;">
+                        <div style="border-left:3px solid #e74c3c; height:25px; margin-right:30%;"></div>
+                        <div style="border-left:3px solid #2c3e50; height:25px;"></div>
+                     </div>`;
+
+            // --- SECTION BATTERIES ---
+            html += `<div style="text-align:center; font-weight:bold; margin-bottom: 5px; color:#2c3e50;">Parc Batteries (${nb_b_para} P // x ${nb_b_serie} S)</div>`;
+            html += `<div class="bus-container">`;
+            
+            let max_b_para = 5;
+            let max_b_serie = 4;
+            let para_to_draw = Math.min(nb_b_para, max_b_para);
+            let serie_to_draw = Math.min(nb_b_serie, max_b_serie);
+
+            for(let p=0; p < para_to_draw; p++) {
+                html += `<div class="flex-row-center"><div class="wire-flex-red"></div>`;
+                for(let s=0; s < serie_to_draw; s++) {
+                    if(s > 0) html += `<div class="wire-fixed-series"></div>`;
+                    html += `
+                        <div class="node-box node-battery">
+                            <div class="node-icon">${svgBattery}</div>
+                            <div class="node-details"><strong>${b_capa}Ah</strong><br>${b_tension}V</div>
+                            <div class="node-poles"><div class="pole-plus"></div><div class="pole-minus"></div></div>
+                        </div>`;
+                }
+                if(nb_b_serie > max_b_serie) html += `<div class="wire-fixed-series"></div><div style="font-size:0.8rem;">... (+${nb_b_serie - max_b_serie})</div>`;
+                html += `<div class="wire-flex-black"></div></div>`;
+            }
+            if (nb_b_para > max_b_para) html += `<div style="text-align:center; font-size:0.8rem; color:#888;">+ ${nb_b_para - max_b_para} chaînes parallèles non dessinées</div>`;
+            html += `</div>`;
+
+            html += `</div></div>`; 
+            
+            box.innerHTML = html;
+        }
+        
+        window.onload = function() {
+            majChampsEquipement();
+        };
+    </script>
+</body>
+</html>
