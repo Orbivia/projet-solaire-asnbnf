@@ -1,6 +1,5 @@
 SolaExpert ASNBNF - Calculateur Solaire Autonome
 
-Application web légère et autonome conçue pour dimensionner des installations solaires photovoltaïques en site isolé (off-grid).
 
 📱 Aperçu de l'Application
 
@@ -8,59 +7,41 @@ L'application est conçue pour être utilisée de manière fluide sur smartphone
 
 1. 📍 Localisation & Ensoleillement
 
-API PVGIS : Récupération automatique des données d'ensoleillement en cliquant sur une carte interactive.
+API PVGIS : Récupération automatique des données d'ensoleillement (Commission Européenne) en cliquant sur une carte interactive.
 
-Mode Pédagogique (Facteur F) : L'utilisateur peut laisser le réglage sur "Optimisé" (Facteur de 1.00) ou régler manuellement l'inclinaison et l'orientation pour observer l'impact d'une mauvaise exposition sur la baisse du rendement.
+Mode Manuel (Facteur F) : L'utilisateur peut régler l'inclinaison et l'orientation cardinale. Le système calcule dynamiquement le facteur de perte lié à l'orientation pour simuler le rendement réel du terrain.
 
 2. 💡 Bilan de Consommation
 
-Saisie robuste des équipements : définition de la quantité, des heures d'utilisation et du nombre de jours par semaine.
+Saisie robuste des équipements : définition de la quantité, des heures d'utilisation et du nombre de jours par semaine (bridé à 7 jours).
 
 Sécurité des saisies : Alertes si l'utilisation dépasse 24h ou si les heures de nuit dépassent les heures totales.
 
-Consommation de Nuit : Le système isole spécifiquement l'énergie consommée la nuit pour dimensionner précisément le parc de batteries.
+Consommation de Nuit : Le système isole spécifiquement l'énergie consommée la nuit. Cette donnée est cruciale pour le dimensionnement strict du parc de batteries.
 
 3. ⚙️ Paramètres Techniques
 
 Ajustement fin des rendements (onduleur, câbles, chaleur).
 
-Technologie de Batterie : Un menu déroulant simple (Lithium, Plomb Gel, Plomb Ouvert) définit automatiquement la Profondeur de Décharge (DoD) sans que l'utilisateur n'ait à connaître les ratios par cœur.
+Technologie de Batterie : Un menu déroulant (Lithium, Plomb Gel, Plomb Ouvert) définit automatiquement la Profondeur de Décharge (DoD) adéquate pour prolonger la durée de vie du stockage.
 
-Choix de l'architecture de stockage (12V, 24V, 48V).
+Choix de l'architecture de stockage (Tension du parc en 12V/24V/48V, et tension unitaire de la batterie en 2V ou 12V).
 
 4. 📊 Synthèse et Dimensionnement
 
-Recommandations d'achats : Affiche le besoin exact et la recommandation d'achat (ex: arrondissement du nombre de panneaux au chiffre pair supérieur pour s'adapter aux régulateurs MPPT).
+Recommandations d'achats exactes : L'application recommande par exemple un arrondissement du nombre de panneaux au chiffre pair supérieur (pour s'adapter aux régulateurs MPPT modernes).
 
-Schéma unifilaire : Génération dynamique du schéma de câblage (Panneaux en série/parallèle, Régulateur, Batteries en série/parallèle) en fonction des choix techniques précédents.
-
-🛠️ Architecture Technique
-
-SolaExpert repose sur une architecture minimaliste pour garantir une maintenance facile :
-
-Front-end (Client) :
-
-HTML5, CSS3 (Vanilla, sans framework lourd).
-
-JavaScript (ES6) pour la logique de calcul en temps réel et la génération du schéma SVG.
-
-Bibliothèques : Leaflet.js (Carte), Chart.js (Graphique).
-
-Back-end (Serveur) :
-
-Python 3 / Flask (Micro-framework web).
-
-Requests (Pour interroger l'API européenne PVGIS en contournant les problèmes de CORS navigateur).
+Schéma unifilaire généré en direct : Un schéma de câblage SVG (Panneaux, Régulateur, Batteries en série/parallèle) se dessine automatiquement en fonction du calcul final, sans rechargement de la page.
 
 🧮 Méthodologie et Formules de Calcul
 
-Le calculateur utilise des formules standards de l'industrie photovoltaïque pour estimer les besoins :
+Le calculateur utilise des formules standards, validées pour le déploiement sur le terrain en zone isolée :
 
 1. Bilan Énergétique Journalier ($E_j$)
 
-Le besoin total est calculé en moyennant l'utilisation sur la semaine :
+Le besoin total est calculé en lissant l'utilisation sur la semaine :
 
-$$E_j (Wh/j) = \sum \left( P \times Qté \times H \times \left(\frac{Jours/semaine}{7}\right) \right)$$
+$$E_j (Wh/j) = \sum \left( P \times Qté \times H_{jour} \times \left(\frac{Jours/semaine}{7}\right) \right)$$
 
 2. Énergie à Produire ($E_p$)
 
@@ -78,22 +59,25 @@ $$P_c (W_c) = \left( \frac{E_p}{Ir} \right) \times 1000$$
 
 Le nombre de panneaux est calculé, puis arrondi au nombre pair supérieur.
 
-$$Nb_{panneaux\_exact} = \frac{P_c}{P_{unitaire\_panneau}}$$
-
 4. Dimensionnement du Parc Batterie (Stockage)
 
-C'est ici qu'intervient la notion de Consommation de nuit. Le système doit stocker assez d'énergie pour la nuit $E_{nuit}$ OU pour survivre à plusieurs jours sans soleil ($E_j \times J_{auto}$). L'algorithme prend le besoin le plus critique des deux.
+La formule de l'énergie à stocker ($E_{stock}$) garantit une sécurité totale. Le système doit stocker assez d'énergie pour faire face à la nuit qui arrive ($E_{nuit}$), additionné de l'énergie nécessaire pour survivre au nombre de jours sans soleil voulus ($J_{auto}$).
 
-$$E_{stock} = \max (E_{nuit}, E_j \times J_{auto})$$
+$$E_{stock} = E_{nuit} + (E_j \times J_{auto})$$
 
-Capacité théorique du parc ($C_{th}$ en Ah) en fonction de la Profondeur de Décharge (DoD) dictée par la technologie de batterie :
+La Capacité théorique du parc ($C_{th}$ en Ah) est ensuite calculée en fonction de la Profondeur de Décharge (DoD) choisie via le type de batterie :
 
-$$C_{th} = \frac{E_{stock}}{U_{sys} \times DoD \times R_{batteries}}$$
+$$C_{th} = \frac{E_{stock}}{U_{sys} \times DoD}$$
 
-Une marge de sécurité de 20% (facteur 0.8) est ensuite appliquée pour prolonger la durée de vie du parc.
+Enfin, une marge de sécurité de 20% (facteur 0.8 d'endommagement) est appliquée pour obtenir la capacité réelle à installer ($C_{reelle}$) :
+
+$$C_{reelle} = \frac{C_{th}}{0.8}$$
+
+(Note : le rendement de la batterie $r_{bat}$ est utilisé pour majorer le parc de panneaux solaires, mais n'est volontairement pas réintégré ici pour éviter un double surdimensionnement erroné).
 
 5. Section de Câblage (Chute de tension $\Delta V$)
 
 Pour éviter les incendies et les pertes, la section ($S$ en $mm^2$) est calculée avec une tolérance de chute de tension de 3% max, puis arrondie à la section commerciale supérieure (ex: 4, 6, 10, 16 mm²).
 
 $$S = \frac{\rho \times 2 \times L \times I}{\Delta V_{max}}$$
+.
